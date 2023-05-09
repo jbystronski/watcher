@@ -29,10 +29,10 @@ Rename it if you wish, watcher is pretty generic.
 
 ### Command line options
 
-```bash
+```
 Usage:
   -e
-    	Path to the entry file
+    	Path to the entry file.
         REQUIRED
   -c
     	Command to run the server, be it "node", "go run", "python", "npm run".
@@ -53,14 +53,14 @@ Usage:
     	Delay in seconds between consecutive checks, default is 2.
         OPTIONAL
   -l
-    	Path to error log file. If it does not exist it is created.
+    	Path to error log file. It get's created if doesn't exist.
         OPTIONAL
 
 ```
 
 ### Runtime options
 
-```bash
+```
 Usage:
 
   o
