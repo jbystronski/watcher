@@ -1,72 +1,107 @@
-A tool for managing / restarting http servers
+## Watcher
 
-It works like nodemon for nodejs, but works with any type of servers: nodejs, php, go, python, etc.
+A tool for observing / restarting http servers similar to nodemon for node. Automatically reloads the server when changes occur. It's lightweight and portable.
 
-Usage
+It works on a system level, so it's implementation / language agnostic, works with php, python, node, go, etc.
 
-Put the binary executable or the shell file:
+Can be use with local or remote servers, docker containers, etc.
 
-in one of your profile's $PATH directories, e.g
+### Installation
 
+Put the binary executable or the shell script file in one of your profile's $PATH directories, e.g
+
+```
 ~/bin
 ~/.local/bin
 
-in a system wide $PATH directory if you have permissions, e.g
+# or system wide
 
 /bin
+/usr/local/bin
 
-or at the root of your project
+...
 
-Required flags
+```
 
--f
+You can also place it directly in your project, root folder preferably.
 
-Path to the entry file, absolute or relative
+Rename it if you wish, watcher is pretty generic.
 
--c
+### Command line options
 
-Command to run the server, be it "npm run", "node", "go run", "py", etc. Must be enclosed in double quotes.
+```bash
+Usage:
+  -e
+    	Path to the entry file
+        REQUIRED
+  -c
+    	Command to run the server, be it "node", "go run", "python", "npm run".
+        Must be quouted if contains more than 1 word.
+        REQUIRED
+  -p
+        Http port the server is listening at
+        REQUIRED
+  -w
+    	Files / directories to watch for changes:
+        Entries should be included as whitespace separated quoted string.
+        "one two three sub1/sub2"
+        The entry file is included by default.
+        Avoid scanning 3rd party module folders if you have no reason to do so.
+        Include what actually may change.
+        OPTIONAL
+  -d
+    	Delay in seconds between consecutive checks, default is 2.
+        OPTIONAL
+  -l
+    	Path to error log file. If it does not exist it is created.
+        OPTIONAL
 
--p
+```
 
-Port the server is listening to, e.g. 8080, 4000, etc.
+### Runtime options
 
-Optional flags
+```bash
+Usage:
 
--d
+  o
+    	Prints available runtime options
+  r
+    	Restarts the server
+  p
+        Shows running processes ids
+  c
+    	Clears console output
+  l
+    	Shows the contents of the log file (if specified)
+  t
+    	Empties the log file (truncates to 0)
+  u
+        Shows usage, available command-line options
+  q
+        Terminates all processes and leaves
 
-Delay time in seconds between consecutive checks
+```
 
-Runtime options
-
--r restarts the server
-
--q quits watcher and shuts the server down
-
--h prints help
-
-Examples:
+### Examples:
 
 run from terminal
 
 ```bash
 
-watcher -f path/to/js/index.js -c "npm run" -p 4000 -d 3
+watcher -e path/to/js/index.js -c node -p 4000 -d 3 -w "./src/lib .src/utils"
 
-watcher -f path/to/go/index.go -c "go run" -p 8080 -d 2
+watcher -e path/to/go/index.go -c "go run" -p 8080 -d 2 -l errors.log
 
 ```
 
-run from your project's config, e.g package.json
+e.g package.json
 
 ```json
 
 "scripts" : {
-    "dev" : "watcher -f index.js -p 4000 -c \"node\""
-
+    "dev" : "watcher -f index.js -p 4000 -c node -w 'src/lib src/utils'"
 }
 
-
-
+// run as npr run dev
 
 ```
