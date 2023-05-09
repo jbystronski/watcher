@@ -96,12 +96,12 @@ watcher -e path/to/go/index.go -c "go run" -p 8080 -d 2 -l errors.log
 
 e.g package.json
 
-```json
+```
 
 "scripts" : {
     "dev" : "watcher -f index.js -p 4000 -c node -w 'src/lib src/utils'"
 }
 
-// run as npr run dev
+// run as npm run dev
 
 ```
