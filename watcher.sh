@@ -29,6 +29,7 @@ function printOptions {
 function runCmd {
     streamToLog=""
     if [[ -n $logFile ]];then
+        mkdir -p "${logFile%/*}" && touch "$logFile"
         streamToLog="2> >( tee -a $logFile )"
     fi
     eval "$command $input_file $streamToLog"
@@ -46,7 +47,7 @@ function getServerPid {
 }
 
 function killServer {   
-    kill -9 "$(getServerPid)"
+    kill -9 "$(getServerPid)" 2> /dev/null
     echo "Stopping process at port $http_port"
 }
 
@@ -71,11 +72,17 @@ function quit {
 
 function restart {
     killServer 
-    printf "\n"
-    printf "Restarting"
-    printf "\n"
     runCmd &
     p1=$!
+    
+    printf "\n"
+    printf "Restart"
+    printf "\n"
+}
+
+function scanFiles {
+    found=$(find $input_file $files_to_watch 2> /dev/null)
+    bulkModTime=$(stat $found | grep "Modify")   
 }
 
 function checkModTime {
@@ -85,6 +92,16 @@ function checkModTime {
             originModTime=$bulkModTime
             restart
     fi
+}
+
+function showProcesses {
+    echo
+    echo "    Running processes:"
+    echo "    $p0"
+    echo "    $p1"
+    echo "    $p2"
+    echo "    $(getServerPid) on port $http_port"
+    echo
 }
 
 while getopts 'w:e:p:c:d:l:' OPTION; do 
@@ -135,21 +152,6 @@ if [[ "$wrong_arguments" -eq 1 ]];then
     echo "missing arguments $missing_arguments" >&2
     exit 1
 fi
-
-function scanFiles {
-    found=$(find $input_file $files_to_watch 2> /dev/null)
-    bulkModTime=$(stat $found | grep "Modify")   
-}
-
-function showProcesses {
-    echo
-    echo "    Running processes:"
-    echo "    $p0"
-    echo "    $p1"
-    echo "    $p2"
-    echo "    $(getServerPid) on port $http_port"
-    echo
-}
 
 scanFiles
 
