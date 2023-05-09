@@ -1,96 +1,98 @@
 #!/bin/bash
 
-watcher_pid=$$
-server_pid=-1
-timeout=5s
-delay=1
+delay=2
+p0=$$
+p1=0
+p2=0
+originModTime=""
+bulkModTime=""
+usage="usage: $(basename $0) [ -e entry file] [ -p http port ] [ -c command to start the server, inside double quoutes e.g \"npm run\" \"node\" \"go run\" ] [ -w files / folders to watch for changes \"first second third ...\", if not present only the entry file will be watched ] [ -d delay in seconds between consecutive checks, default is 2] [ -l optional path to error log file, will be created if doesn't exist ]"
 
+set -m
 
-function printHelp {
-
-    echo "Printing help"
-
-}
-
-function bail {
-    sleep $timeout
-    echo "Something went wrong, so let's quit" >&2
-    exit 1
-}
-
-function setServerPid {
-
-    pid=$(lsof -n -i :"${http_port}" | grep "LISTEN" | awk '{print $2}')
-    echo "PROC $pid"
-    if [[ -z $pid ]];then
-        server_pid=-1
-        else
-        server_pid=$pid
-    fi
-
-    echo "$server_pid"
+function printOptions {
+    printf '
+    Runtime options:
+    
+    o)  print available options
+    r)  restart server
+    p)  show running processes
+    c)  clear terminal output
+    l)  read the log file, if specified
+    t)  empty the log file (truncate to 0)
+    u)  show usage 
+    q)  quit and terminate running processes
+    \r
+    '
 }
 
 function runCmd {
-    echo "comm $command"
-    eval "$command" "$input_file"
-    setServerPid
-}   
-
-function setModTime {
-    currentModTime=$(stat "$input_file" | grep "Modify")
+    streamToLog=""
+    if [[ -n $logFile ]];then
+        streamToLog="2> >( tee -a $logFile )"
+    fi
+    eval "$command $input_file $streamToLog"
 }
 
-function killServer {
-    kill "$server_pid"
-    setServerPid
-    if [[ "$server_pid" != -1 ]]; then
-            echo "Server still running"
-            echo "$server_pid"
-            killServer
-        else
-            echo "$server_pid"
-            echo "http_port $http_port clear"
+function getServerPid {
+    id=$(lsof -n -i :"${http_port}" | grep "LISTEN" | awk '{print $2}')
+    if [[ -z $id ]];then
+    id=$(fuser -n tcp $http_port 2>/dev/null | awk '{print $1}')
+    fi 
+     if [[ -z $id ]];then
+    id=$(fuser $http_port/tcp)
     fi
+    echo $id
+}
+
+function killServer {   
+    kill -9 "$(getServerPid)"
+    echo "Stopping process at port $http_port"
 }
 
 function printStart {
-  
-    me=$(whoami)
-    
-    echo "Hi $me, a watcher now observes port $http_port"
+    me=$(whoami) 
+    echo "Hi $me, watcher now observes port $http_port"
     echo
-    echo "Runtime options:"
-    echo
-    echo "q - for clean quit"
-    echo "r - to restart the server"
-    echo "h - for help"
-}
-
-function restart {
-    echo "Restarting due to changes"
-    killServer
-    eval "$0 -f $input_file -p $http_port -c \"$command\""
-    kill $watcher_pid
+    printOptions
 }
 
 function cleanup {
+    kill -9 $p2
     killServer
+    kill -9 $p1   
+}
+
+function quit {
+    cleanup
     echo "Leaving"
     exit 0
 }
 
+function restart {
+    killServer 
+    printf "\n"
+    printf "Restarting"
+    printf "\n"
+    runCmd &
+    p1=$!
+}
+
 function checkModTime {
-    setModTime
-    if [[ "$currentModTime" != "$originModTime"  ]];
+    scanFiles
+    if [[ "$originModTime" != "$bulkModTime"  ]];
         then
+            originModTime=$bulkModTime
             restart
     fi
 }
 
-while getopts 'f:p:c:d:' OPTION; do 
+while getopts 'w:e:p:c:d:l:' OPTION; do 
     case "$OPTION" in
-        f)
+        w)
+            files_to_watch=$OPTARG
+            ;;
+        e)
             input_file=$OPTARG
             ;;
         p)
@@ -102,8 +104,11 @@ while getopts 'f:p:c:d:' OPTION; do
         d) 
             delay=$OPTARG
             ;;
+        l)
+            logFile=$OPTARG
+            ;;
         ?)
-            echo "usage: $(basename $0) [-f file to observe] [-p http port ] [-c command to run the file] [-i time interval between modification checks, default is 1s]" >&2
+            echo "$usage" >&2
             exit 1
             ;;
     esac
@@ -111,6 +116,10 @@ done
 
 missing_arguments=""
 wrong_arguments=0
+if [[ -z $input_file ]]; then
+    missing_arguments=$missing_arguments" [ -e entry file ]"
+    wrong_arguments=1
+fi
 
 if [[ -z $http_port ]]; then
     missing_arguments=$missing_arguments" [ -p http port ]"
@@ -122,45 +131,84 @@ if [[ -z $command ]]; then
     wrong_arguments=1
 fi
 
-if [[ -z $input_file ]]; then
-    missing_arguments=$missing_arguments" [ -f file ]"
-    wrong_arguments=1
-fi
-
 if [[ "$wrong_arguments" -eq 1 ]];then
     echo "missing arguments $missing_arguments" >&2
     exit 1
 fi
 
-originModTime=$(stat "$input_file" | grep "Modify")
-currentModTime=$originModTime
+function scanFiles {
+    found=$(find $input_file $files_to_watch 2> /dev/null)
+    bulkModTime=$(stat $found | grep "Modify")   
+}
 
+function showProcesses {
+    echo
+    echo "    Running processes:"
+    echo "    $p0"
+    echo "    $p1"
+    echo "    $p2"
+    echo "    $(getServerPid) on port $http_port"
+    echo
+}
+
+scanFiles
+
+originModTime=$bulkModTime
+
+trap quit EXIT
 
 printStart
 
-trap cleanup EXIT
-
 runCmd &
+
+p1=$!
+
+while true  
+    do
+        sleep $delay
+        checkModTime
+    done &
+
+p2=$!
+getServerPid
 
 while true 
     do
-        read -rsn1 input
-        if [[ $input == "q" ]];then
-            cleanup
-        fi
-        if [[ $input == "h" ]];then
-            printHelp
-        fi
-        if [[ $input == "r" ]];then
-            restart
-        fi
-        sleep 2s
-        checkModTime
-        # bail
+        if read -rsn1 input; then
+            case $input in
+                q)
+                    exit 0
+                ;;
+                o)
+                    printOptions
+                ;;
+                r)
+                    restart
+                ;;
+                c)
+                    clear
+                ;;
+                p)
+                    showProcesses
+                ;;
+                l)
+                    if [[ -n $logFile ]];then
+                        cat $logFile
+                    else
+                        echo "Log file not specified"
+                    fi
+                ;;
+                t)
+                     if [[ -n $logFile ]];then
+                        truncate -s 0 $logFile
+                        echo "log file emptied"
+                    else
+                        echo "Log file not specified"
+                    fi
+                ;;
+                u)
+                    echo "$usage"
+                ;;
+            esac   
+        fi     
     done
-
-# if [[ "$?" -ne 0 ]];then
-
-#     echo "$?"
-
-# fi
