@@ -6,7 +6,7 @@ p1=0
 p2=0
 originModTime=""
 bulkModTime=""
-usage="usage: $(basename $0) [ -e entry file] [ -p http port ] [ -c command to start the server, inside double quoutes e.g \"npm run\" \"node\" \"go run\" ] [ -w files / folders to watch for changes \"first second third ...\", if not present only the entry file will be watched ] [ -d delay in seconds between consecutive checks, default is 2] [ -l optional path to error log file, will be created if doesn't exist ]"
+usage="usage: $(basename "$0") [ -e entry file] [ -p http port ] [ -c command to start the server, inside double quoutes e.g \"npm run\" \"node\" \"go run\" ] [ -w files / folders to watch for changes \"first second third ...\", if not present only the entry file will be watched ] [ -d delay in seconds between consecutive checks, default is 2] [ -l optional path to error log file, will be created if doesn't exist ]"
 
 set -m
 
@@ -38,7 +38,7 @@ function runCmd {
 function getServerPid {
     id=$(lsof -n -i :"${http_port}" | grep "LISTEN" | awk '{print $2}')
     if [[ -z $id ]];then
-    id=$(fuser -n tcp $http_port 2>/dev/null | awk '{print $1}')
+    id=$(fuser -n tcp "$http_port" 2>/dev/null | awk '{print $1}')
     fi 
      if [[ -z $id ]];then
     id=$(fuser $http_port/tcp)
@@ -170,9 +170,8 @@ while true
         sleep $delay
         checkModTime
     done &
-
 p2=$!
-getServerPid
+
 
 while true 
     do
