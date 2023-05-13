@@ -39,7 +39,7 @@ Usage:
         Must be quouted if contains more than 1 word.
         REQUIRED
   -p
-        Http port the server is listening at
+        Http port the server is listening on
         REQUIRED
   -w
     	Files / directories to watch for changes:
